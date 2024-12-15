@@ -1,3 +1,5 @@
+devices: ["mps:0"]
+dtype: "fp32"
 output_folder: "../logs"
 loader:
   batch_size: 32

@@ -29,8 +29,8 @@ def train_one_epoch (
     print("\n[Train]: Epoch {:d} started".format(curr_epoch))
     start = time.time()
     for iter_idx, (imgs, targets) in enumerate(train_loader, 0):
-        imgs.to(device)
-        targets.to(device)
+        imgs = imgs.to(device)
+        targets = targets.to(device)
 
         optimizer.zero_grad()
         if scaler is not None:

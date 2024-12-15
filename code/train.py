@@ -9,6 +9,11 @@ import torch.backends.cudnn as cudnn
 from pprint import pprint
 from torch.utils.tensorboard import SummaryWriter
 
+try:
+    from torch.amp import GradScaler
+except ImportError:
+    from torch.cuda.amp import GradScaler
+
 from libs import (
     load_config,
     build_dataset,
@@ -16,6 +21,8 @@ from libs import (
     MovieClassifier,
     build_optimizer,
     build_scheduler,
+    save_checkpoint,
+    train_one_epoch
 )
 
 ########################################################################################
@@ -67,6 +74,83 @@ def main(args):
     scheduler = build_scheduler(optimizer, cfg["opt"], num_iters_per_epoch)
     # also disable cudnn benchmark, as the input size varies during training
     cudnn.benchmark = False
+
+    """4. Resume from model / Misc"""
+     # resume from checkpoint?
+    if args.resume:
+        if os.path.isfile(args.resume):
+            # load ckpt, reset epoch / best rmse
+            checkpoint = torch.load(
+                args.resume,
+                map_location=cfg["devices"][0],
+                weights_only=True
+            )
+            args.start_epoch = checkpoint["epoch"]
+            model.load_state_dict(checkpoint["state_dict"])
+            # also load the optimizer / scheduler if necessary
+            optimizer.load_state_dict(checkpoint["optimizer"])
+            scheduler.load_state_dict(checkpoint["scheduler"])
+            print(
+                "=> loaded checkpoint '{:s}' (epoch {:d}".format(
+                    args.resume, checkpoint["epoch"]
+                )
+            )
+            del checkpoint
+        else:
+            print("=> no checkpoint found at '{}'".format(args.resume))
+            return
+
+    # save the current config
+    with open(os.path.join(ckpt_folder, "config.txt"), "w") as fid:
+        pprint(cfg, stream=fid)
+        fid.flush()
+
+    """5. training loop"""
+    print("\nStart training ...")
+
+    # start training
+    if cfg["dtype"] == "fp16":
+        scaler = GradScaler()
+        print("Using mixed precision training")
+    else:
+        scaler=None
+    max_epochs = cfg["opt"]["epochs"] + cfg["opt"]["warmup_epochs"]
+    for epoch in range(args.start_epoch, max_epochs):
+        # train for one epoch
+        train_one_epoch(
+            train_loader,
+            model,
+            optimizer,
+            scheduler,
+            epoch,
+            torch.device(cfg["devices"][0]),
+            scaler=scaler,
+            tb_writer=tb_writer,
+            print_freq=args.print_freq,
+        )
+
+        # save ckpt once in a while
+        if ((epoch + 1) == max_epochs) or (
+                (args.ckpt_freq > 0) and ((epoch + 1) % args.ckpt_freq == 0)
+        ):
+            save_states = {
+                "epoch": epoch,
+                "state_dict": model.state_dict(),
+                "scheduler": scheduler.state_dict(),
+                "optimizer": optimizer.state_dict(),
+            }
+            is_final = (epoch + 1) == max_epochs
+            save_checkpoint(
+                save_states,
+                is_final,
+                file_folder=ckpt_folder,
+                file_name="epoch_{:03d}.pth.tar".format(epoch),
+            )
+
+    # wrap up
+    tb_writer.close()
+    print("All done!")
+    return
 
 
 ########################################################################################

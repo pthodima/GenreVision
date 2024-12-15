@@ -6,9 +6,10 @@ import numpy as np
 import pandas as pd
 
 from torch.utils.data import Dataset, DataLoader
-from torchvision.io import read_image
+# from torchvision.io import read_image
 from sklearn.preprocessing import MultiLabelBinarizer
 from torchvision import transforms
+from PIL import Image
 
 # from .transform import Compose, ToTensor
 
@@ -82,7 +83,7 @@ def build_dataloader(dataset, is_training, batch_size, num_workers):
         dataset,
         batch_size=batch_size,
         num_workers=num_workers,
-        collate_fn=trivial_batch_collator,
+        # collate_fn=trivial_batch_collator,
         worker_init_fn=(worker_init_reset_seed if is_training else None),
         shuffle=is_training,
         drop_last=is_training,
@@ -119,8 +120,8 @@ class MovieLens20M(Dataset):
 
     def __getitem__(self, idx):
         img_path = os.path.join(self.img_dir, str(self.data.iloc[idx, 0]) + ".jpg")
-        img = read_image(img_path)
-        genres = self.data.iloc[idx, 1]
+        img = Image.open(img_path).convert("RGB")
+        genres = self.genre_encoded[idx]
         if self._transforms:
             img = self._transforms(img)
         return img, genres
