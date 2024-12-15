@@ -1,0 +1,13 @@
+output_folder: "../logs"
+loader:
+  batch_size: 32
+dataset:
+  name: "MovieLens20M"
+  train: "movie"
+  test: "val"
+  img_folder: "../data/MovieLens20M/posters"
+  ann_folder: "../data/MovieLens20M"
+opt:
+  warmup_epochs: 3
+  epochs: 10
+  learning_rate: 0.02
