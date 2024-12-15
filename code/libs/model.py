@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn import BCEWithLogitsLoss
 
 from torchvision.models import resnet
 
@@ -65,10 +66,16 @@ class MovieClassifier(nn.Module):
             self.apply(self.freeze_bn)
         return self
 
-    def forward(self, images):
+    def forward(self, images, targets):
 
         features = self.backbone(images)
 
         genre_logits = self.genre_head(features)
 
-        return genre_logits
+        if self.training:
+            targets = targets.float()
+            loss_criterion = BCEWithLogitsLoss()
+            genre_loss = loss_criterion(genre_logits, targets)
+            return {"genre_loss": genre_loss, "final_loss": genre_loss}
+        else:
+           return genre_logits
