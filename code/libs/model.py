@@ -41,7 +41,7 @@ class GenreConvHead(nn.Module):
         return x
 
 class MovieClassifier(nn.Module):
-    def __init__(self, backbone, backbone_freeze_bn, backbone_out_feats_dims, num_genres, train_cfg, test_cfg):
+    def __init__(self, backbone, backbone_freeze_bn, backbone_out_feats_dims, num_genres, train_cfg, test_cfg, class_weights):
         super().__init__()
         assert backbone in ("resnet18", "resnet34")
         self.backbone_name = backbone
@@ -50,6 +50,7 @@ class MovieClassifier(nn.Module):
         self.backbone = nn.Sequential(*list(self.backbone.children())[:-2])
 
         self.genre_head = GenreConvHead(num_genres, backbone_out_feats_dims)
+        self.class_weights = class_weights
 
 
     @staticmethod
@@ -74,7 +75,7 @@ class MovieClassifier(nn.Module):
 
         if self.training:
             targets = targets.float()
-            loss_criterion = BCEWithLogitsLoss()
+            loss_criterion = BCEWithLogitsLoss(pos_weight=self.class_weights)
             genre_loss = loss_criterion(genre_logits, targets)
             return {"genre_loss": genre_loss, "final_loss": genre_loss}
         else:

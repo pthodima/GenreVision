@@ -43,7 +43,7 @@ def build_dataset(name, split, img_folder, ann_folder):
 
     if is_training: # Training
         tf = transforms.Compose([
-            transforms.Resize(256),               # Resize keeping aspect ratio
+            transforms.Resize(224),               # Resize keeping aspect ratio
             transforms.CenterCrop(224),           # Center crop to 224x224
             transforms.ToTensor(),                # Convert to tensor
             transforms.Normalize(                 # Normalize based on ImageNet mean and std
@@ -53,7 +53,7 @@ def build_dataset(name, split, img_folder, ann_folder):
         ])
     else: # Evaluation
         tf = transforms.Compose([
-            transforms.Resize(256),               # Resize keeping aspect ratio
+            transforms.Resize(224),               # Resize keeping aspect ratio
             transforms.CenterCrop(224),           # Center crop to 224x224
             transforms.ToTensor(),                # Convert to tensor
             transforms.Normalize(                 # Normalize based on ImageNet mean and std
@@ -114,6 +114,10 @@ class MovieLens20M(Dataset):
 
         # store the one-hot encoded labels as a tensor
         self.genres = torch.tensor(self.genre_encoded, dtype=torch.float32)
+
+        # calculate class weights for use with BCELoss (https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html)
+        self.bce_weights = self.genres.sum(0)
+        self.bce_weights = (len(self.data) - self.bce_weights) / self.bce_weights
 
     def __len__(self):
         return len(self.data)

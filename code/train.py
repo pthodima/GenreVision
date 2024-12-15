@@ -66,7 +66,7 @@ def main(args):
 
     """3. create model, optimizer, and scheduler"""
     # model
-    model = MovieClassifier(**cfg["model"]).to(torch.device(cfg["devices"][0]))
+    model = MovieClassifier(**cfg["model"], class_weights=train_dataset.bce_weights.to(torch.device(cfg["devices"][0]))).to(torch.device(cfg["devices"][0]))
     # optimizer
     optimizer = build_optimizer(model, cfg["opt"])
     # schedule
